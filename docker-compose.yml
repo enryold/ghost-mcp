@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  ghost-mcp-readonly:
+    build: .
+    container_name: ghost-mcp-readonly-server
+    environment:
+      - GHOST_API_URL=${GHOST_API_URL}
+      - GHOST_CONTENT_API_KEY=${GHOST_CONTENT_API_KEY}
+      - GHOST_API_VERSION=${GHOST_API_VERSION:-v5.0}
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    # Starts the MCP server directly
+    command: ["npm", "start"]

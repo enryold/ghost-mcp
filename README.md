@@ -1,21 +1,22 @@
 # Ghost MCP Server
 
-## ‼️ Important Notice: Python to TypeScript Migration
-I've completely rewritten the Ghost MCP Server from Python to TypeScript in this v0.1.0 release. This major change brings several benefits:
+## ‼️ Important Notice: Read-Only Fork
 
-- Simplified installation: Now available as an NPM package (@fanyangmeng/ghost-mcp)
-- Improved reliability: Uses the official @tryghost/admin-api client instead of custom implementation
-- Better maintainability: TypeScript provides type safety and better code organization
-- Streamlined configuration: Simple environment variable setup
+This is a **read-only** fork of the original Ghost MCP server that has been completely transformed for safe AI agent access:
 
-### Breaking Changes
+- **Read-only operations only** - All write/admin capabilities removed
+- **Content API** - Switched from Admin API to Content API for security
+- **Safe for AI agents** - No risk of content modification or deletion
+- **Docker support** - Easy deployment with Docker and Docker Compose
+- **Published content only** - Access to posts, pages, tags, authors, tiers, and settings
 
-- Python dependencies are no longer required
-- Configuration method has changed (now using Node.js environment variables)
-- Docker deployment has been simplified
-- Different installation process (now using NPM)
+### What's Different From the Original
 
-Please see the below updated documentation for details on migrating from the Python version. If you encounter any issues, feel free to open an issue on GitHub.
+- 🔒 **No admin operations** - Cannot create, edit, or delete content
+- 🔒 **Content API key** - Uses safer Content API instead of Admin API
+- 🔒 **Published content only** - No access to drafts or admin-only data
+- 🐳 **Docker ready** - Includes Dockerfile and Docker Compose setup
+- 📦 **New package name** - Available as `@enryold/ghost-mcp-readonly`
 
 ---
 
@@ -36,13 +37,15 @@ A Model Context Protocol (MCP) server for **read-only** access to Ghost CMS cont
 
 ## Usage
 
+### Using with NPM
+
 To use this with MCP clients, for instance, Claude Desktop, add the following to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
       "ghost-mcp": {
         "command": "npx",
-        "args": ["-y", "@fanyangmeng/ghost-mcp"],
+        "args": ["-y", "@enryold/ghost-mcp-readonly"],
         "env": {
             "GHOST_API_URL": "https://yourblog.com",
             "GHOST_CONTENT_API_KEY": "your_content_api_key",
@@ -51,6 +54,66 @@ To use this with MCP clients, for instance, Claude Desktop, add the following to
       }
     }
 }
+```
+
+### Using with Docker
+
+#### Quick Start with Docker Compose
+
+1. **Clone this repository:**
+   ```bash
+   git clone <repository-url>
+   cd ghost-mcp
+   ```
+
+2. **Create environment file:**
+   ```bash
+   cp .env.example .env
+   ```
+
+3. **Edit `.env` file with your Ghost site details:**
+   ```bash
+   GHOST_API_URL=https://yourblog.com
+   GHOST_CONTENT_API_KEY=your_content_api_key_here
+   GHOST_API_VERSION=v5.0
+   ```
+   
+   **Important:** The `GHOST_API_URL` must NOT have a trailing slash.
+
+4. **Run with Docker Compose:**
+   ```bash
+   docker-compose up -d
+   ```
+
+#### Using with Claude Desktop (Docker)
+
+To use the Docker version with Claude Desktop, update your `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+      "ghost-mcp": {
+        "command": "docker",
+        "args": ["exec", "-i", "ghost-mcp-readonly-server", "npm", "start"],
+        "env": {}
+      }
+    }
+}
+```
+
+#### Manual Docker Commands
+
+**Build the image:**
+```bash
+docker build -t ghost-mcp-readonly .
+```
+
+**Run the container:**
+```bash
+docker run -it --rm \
+  -e GHOST_API_URL=https://yourblog.com \
+  -e GHOST_CONTENT_API_KEY=your_content_api_key \
+  -e GHOST_API_VERSION=v5.0 \
+  ghost-mcp-readonly
 ```
 
 ## Available Resources

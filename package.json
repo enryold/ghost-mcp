@@ -1,7 +1,7 @@
 {
-    "name": "@fanyangmeng/ghost-mcp",
+    "name": "@enryold/ghost-mcp-readonly",
     "version": "0.1.0",
-    "description": "MCP server for using the Ghost API",
+    "description": "Read-only MCP server for accessing Ghost CMS content safely",
     "main": "build/server.js",
     "bin": {
         "ghost-mcp": "build/server.js"
@@ -18,8 +18,8 @@
     "publishConfig": {
         "access": "public"
     },
-    "keywords": [],
-    "author": "Fanyang Meng (https://mfydev.link)",
+    "keywords": ["ghost", "mcp", "readonly", "content-api", "cms", "blog"],
+    "author": "Enryold",
     "license": "ISC",
     "type": "commonjs",
     "dependencies": {
