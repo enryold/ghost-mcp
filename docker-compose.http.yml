@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  ghost-mcp-readonly:
+    build: 
+      context: .
+      dockerfile: Dockerfile.http
+    container_name: ghost-mcp-readonly-http
+    environment:
+      - GHOST_API_URL=${GHOST_API_URL}
+      - GHOST_CONTENT_API_KEY=${GHOST_CONTENT_API_KEY}
+      - GHOST_API_VERSION=${GHOST_API_VERSION:-v5.0}
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    restart: unless-stopped

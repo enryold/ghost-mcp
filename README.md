@@ -58,7 +58,7 @@ To use this with MCP clients, for instance, Claude Desktop, add the following to
 
 ### Using with Docker
 
-#### Quick Start with Docker Compose
+#### For Local MCP Client Use (Stdio)
 
 1. **Clone this repository:**
    ```bash
@@ -84,6 +84,30 @@ To use this with MCP clients, for instance, Claude Desktop, add the following to
    ```bash
    docker-compose up -d
    ```
+
+#### For Cloud Deployment (HTTP/SSE)
+
+For cloud deployments like Coolify, Heroku, or similar platforms:
+
+1. **Build and deploy HTTP version:**
+   ```bash
+   docker build -f Dockerfile.http -t ghost-mcp-readonly-http .
+   docker run -p 3000:3000 \
+     -e GHOST_API_URL=https://yourblog.com \
+     -e GHOST_CONTENT_API_KEY=your_content_api_key \
+     -e GHOST_API_VERSION=v5.0 \
+     ghost-mcp-readonly-http
+   ```
+
+2. **Or use Docker Compose for HTTP:**
+   ```bash
+   docker-compose -f docker-compose.http.yml up -d
+   ```
+
+**HTTP Endpoints:**
+- Health check: `GET /health`
+- MCP endpoint: `POST /message` (Server-Sent Events transport)
+- API info: `GET /`
 
 #### Using with Claude Desktop (Docker)
 
