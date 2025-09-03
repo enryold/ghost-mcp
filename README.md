@@ -85,7 +85,7 @@ To use this with MCP clients, for instance, Claude Desktop, add the following to
    docker-compose up -d
    ```
 
-#### For Cloud Deployment (HTTP/SSE)
+#### For Cloud Deployment (HTTP)
 
 For cloud deployments like Coolify, Heroku, or similar platforms:
 
@@ -106,7 +106,7 @@ For cloud deployments like Coolify, Heroku, or similar platforms:
 
 **HTTP Endpoints:**
 - Health check: `GET /health`
-- MCP endpoint: `POST /message` (Server-Sent Events transport)
+- MCP endpoint: `/message` (Streamable HTTP transport - supports GET, POST, DELETE)
 - API info: `GET /`
 
 #### Using with Claude Desktop (Docker)
