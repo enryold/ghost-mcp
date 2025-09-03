@@ -4,6 +4,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { ghostApiClient } from './ghostApi';
 import { randomUUID } from 'crypto';
 import {
@@ -49,9 +50,8 @@ app.get('/', (req, res) => {
   });
 });
 
-// Set up HTTP transport
-async function startServer() {
-    // Create MCP server instance
+// Function to create a configured MCP server instance
+function createMcpServer() {
     const server = new McpServer({
         name: "ghost-mcp-readonly",
         version: "1.0.0",
@@ -75,18 +75,81 @@ async function startServer() {
     registerSettingsTools(server);
     registerPrompts(server);
     
-    // Create Streamable HTTP transport for MCP
-    const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => randomUUID()
-    });
-    
-    // Connect server to transport
-    await server.connect(transport);
+    return server;
+}
+
+// Map to store transports by session ID
+const transports: Record<string, StreamableHTTPServerTransport> = {};
+
+// Set up HTTP transport
+async function startServer() {
+    // MCP endpoint handler
+    const mcpHandler = async (req: any, res: any) => {
+        const sessionId = req.headers['mcp-session-id'];
+        
+        try {
+            let transport: StreamableHTTPServerTransport;
+            
+            if (sessionId && transports[sessionId]) {
+                // Reuse existing transport
+                transport = transports[sessionId];
+            } else if (!sessionId && isInitializeRequest(req.body)) {
+                // New initialization request
+                transport = new StreamableHTTPServerTransport({
+                    sessionIdGenerator: () => randomUUID(),
+                    onsessioninitialized: (sessionId: string) => {
+                        console.log(`Session initialized with ID: ${sessionId}`);
+                        transports[sessionId] = transport;
+                    }
+                });
+                
+                // Set up onclose handler to clean up transport
+                transport.onclose = () => {
+                    const sid = transport.sessionId;
+                    if (sid && transports[sid]) {
+                        console.log(`Transport closed for session ${sid}`);
+                        delete transports[sid];
+                    }
+                };
+                
+                // Connect a new server instance to this transport
+                const server = createMcpServer();
+                await server.connect(transport);
+                await transport.handleRequest(req, res, req.body);
+                return; // Already handled
+            } else {
+                // Invalid request - no session ID or not initialization request
+                res.status(400).json({
+                    jsonrpc: '2.0',
+                    error: {
+                        code: -32000,
+                        message: 'Bad Request: No valid session ID provided',
+                    },
+                    id: null,
+                });
+                return;
+            }
+            
+            // Handle the request with existing transport
+            await transport.handleRequest(req, res, req.body);
+            
+        } catch (error) {
+            console.error('Error handling MCP request:', error);
+            if (!res.headersSent) {
+                res.status(500).json({
+                    jsonrpc: '2.0',
+                    error: {
+                        code: -32603,
+                        message: 'Internal server error',
+                    },
+                    id: null,
+                });
+            }
+        }
+    };
     
     // Set up MCP endpoint to handle all HTTP methods
-    app.all('/message', async (req, res) => {
-        await transport.handleRequest(req, res, req.body);
-    });
+    app.all('/message', mcpHandler);
     
     // Start the HTTP server
     app.listen(port, () => {
@@ -100,4 +163,21 @@ async function startServer() {
 startServer().catch((error: any) => {
     console.error("Fatal error starting server:", error);
     process.exit(1);
+});
+
+// Handle server shutdown
+process.on('SIGINT', async () => {
+    console.log('Shutting down server...');
+    // Close all active transports to properly clean up resources
+    for (const sessionId in transports) {
+        try {
+            console.log(`Closing transport for session ${sessionId}`);
+            await transports[sessionId].close();
+            delete transports[sessionId];
+        } catch (error) {
+            console.error(`Error closing transport for session ${sessionId}:`, error);
+        }
+    }
+    console.log('Server shutdown complete');
+    process.exit(0);
 });
