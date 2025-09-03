@@ -1,4 +1,4 @@
-// src/tools/posts.ts
+// src/tools/pages.ts
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ghostApiClient } from "../ghostApi";
@@ -19,10 +19,10 @@ const readParams = {
   formats: z.string().optional(),
 };
 
-export function registerPostTools(server: McpServer) {
-  // Browse posts
+export function registerPageTools(server: McpServer) {
+  // Browse pages
   server.tool(
-    "posts_browse",
+    "pages_browse",
     browseParams,
     async (args, _extra) => {
       const options: any = {
@@ -33,21 +33,21 @@ export function registerPostTools(server: McpServer) {
         ...(args.include && { include: args.include.split(',') as any }),
         ...(args.formats && { formats: args.formats.split(',') as any })
       };
-      const posts = await ghostApiClient.posts.browse(options);
+      const pages = await ghostApiClient.pages.browse(options);
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(posts, null, 2),
+            text: JSON.stringify(pages, null, 2),
           },
         ],
       };
     }
   );
 
-  // Read post
+  // Read page
   server.tool(
-    "posts_read",
+    "pages_read",
     readParams,
     async (args, _extra) => {
       // Prepare the identifier parameter - ensure we have either id or slug
@@ -59,16 +59,15 @@ export function registerPostTools(server: McpServer) {
         ...(args.include && { include: args.include.split(',') as any }),
         ...(args.formats && { formats: args.formats.split(',') as any })
       };
-      const post = await ghostApiClient.posts.read(identifier, options);
+      const page = await ghostApiClient.pages.read(identifier, options);
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(post, null, 2),
+            text: JSON.stringify(page, null, 2),
           },
         ],
       };
     }
   );
-
 }

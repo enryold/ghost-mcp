@@ -11,24 +11,9 @@ const browseParams = {
   order: z.string().optional(),
 };
 const readParams = {
-  id: z.string().optional(),
-  slug: z.string().optional(),
-};
-const addParams = {
-  name: z.string(),
-  description: z.string().optional(),
-  slug: z.string().optional(),
-  // Add more fields as needed
-};
-const editParams = {
-  id: z.string(),
-  name: z.string().optional(),
-  description: z.string().optional(),
-  slug: z.string().optional(),
-  // Add more fields as needed
-};
-const deleteParams = {
-  id: z.string(),
+  id: z.string().nullable().optional(),
+  slug: z.string().nullable().optional(),
+  include: z.string().optional(),
 };
 
 export function registerTagTools(server: McpServer) {
@@ -37,7 +22,13 @@ export function registerTagTools(server: McpServer) {
     "tags_browse",
     browseParams,
     async (args, _extra) => {
-      const tags = await ghostApiClient.tags.browse(args);
+      const options = {
+        ...(args.filter && { filter: args.filter }),
+        ...(args.limit && { limit: args.limit }),
+        ...(args.page && { page: args.page }),
+        ...(args.order && { order: args.order })
+      };
+      const tags = await ghostApiClient.tags.browse(options);
       return {
         content: [
           {
@@ -54,7 +45,15 @@ export function registerTagTools(server: McpServer) {
     "tags_read",
     readParams,
     async (args, _extra) => {
-      const tag = await ghostApiClient.tags.read(args);
+      // Prepare the identifier parameter - ensure we have either id or slug
+      if (!args.id && !args.slug) {
+        throw new Error("Either id or slug must be provided");
+      }
+      const identifier = args.id ? { id: args.id } : { slug: args.slug! };
+      const options: any = { 
+        ...(args.include && { include: args.include.split(',') as any })
+      };
+      const tag = await ghostApiClient.tags.read(identifier, options);
       return {
         content: [
           {
@@ -66,54 +65,4 @@ export function registerTagTools(server: McpServer) {
     }
   );
 
-  // Add tag
-  server.tool(
-    "tags_add",
-    addParams,
-    async (args, _extra) => {
-      const tag = await ghostApiClient.tags.add(args);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(tag, null, 2),
-          },
-        ],
-      };
-    }
-  );
-
-  // Edit tag
-  server.tool(
-    "tags_edit",
-    editParams,
-    async (args, _extra) => {
-      const tag = await ghostApiClient.tags.edit(args);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(tag, null, 2),
-          },
-        ],
-      };
-    }
-  );
-
-  // Delete tag
-  server.tool(
-    "tags_delete",
-    deleteParams,
-    async (args, _extra) => {
-      await ghostApiClient.tags.delete(args);
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Tag with id ${args.id} deleted.`,
-          },
-        ],
-      };
-    }
-  );
 }

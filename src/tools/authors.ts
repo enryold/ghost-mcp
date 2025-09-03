@@ -1,4 +1,4 @@
-// src/tools/posts.ts
+// src/tools/authors.ts
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ghostApiClient } from "../ghostApi";
@@ -10,19 +10,17 @@ const browseParams = {
   page: z.number().optional(),
   order: z.string().optional(),
   include: z.string().optional(),
-  formats: z.string().optional(),
 };
 const readParams = {
   id: z.string().nullable().optional(),
   slug: z.string().nullable().optional(),
   include: z.string().optional(),
-  formats: z.string().optional(),
 };
 
-export function registerPostTools(server: McpServer) {
-  // Browse posts
+export function registerAuthorTools(server: McpServer) {
+  // Browse authors
   server.tool(
-    "posts_browse",
+    "authors_browse",
     browseParams,
     async (args, _extra) => {
       const options: any = {
@@ -30,24 +28,23 @@ export function registerPostTools(server: McpServer) {
         ...(args.limit && { limit: args.limit }),
         ...(args.page && { page: args.page }),
         ...(args.order && { order: args.order }),
-        ...(args.include && { include: args.include.split(',') as any }),
-        ...(args.formats && { formats: args.formats.split(',') as any })
+        ...(args.include && { include: args.include.split(',') as any })
       };
-      const posts = await ghostApiClient.posts.browse(options);
+      const authors = await ghostApiClient.authors.browse(options);
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(posts, null, 2),
+            text: JSON.stringify(authors, null, 2),
           },
         ],
       };
     }
   );
 
-  // Read post
+  // Read author
   server.tool(
-    "posts_read",
+    "authors_read",
     readParams,
     async (args, _extra) => {
       // Prepare the identifier parameter - ensure we have either id or slug
@@ -56,19 +53,17 @@ export function registerPostTools(server: McpServer) {
       }
       const identifier = args.id ? { id: args.id } : { slug: args.slug! };
       const options: any = { 
-        ...(args.include && { include: args.include.split(',') as any }),
-        ...(args.formats && { formats: args.formats.split(',') as any })
+        ...(args.include && { include: args.include.split(',') as any })
       };
-      const post = await ghostApiClient.posts.read(identifier, options);
+      const author = await ghostApiClient.authors.read(identifier, options);
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(post, null, 2),
+            text: JSON.stringify(author, null, 2),
           },
         ],
       };
     }
   );
-
 }

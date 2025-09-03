@@ -4,11 +4,6 @@ import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mc
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { ghostApiClient } from './ghostApi'; // Import the initialized Ghost API client
 import {
-    handleUserResource,
-    handleMemberResource,
-    handleTierResource,
-    handleOfferResource,
-    handleNewsletterResource,
     handlePostResource,
     handleBlogInfoResource
 } from './resources'; // Import resource handlers
@@ -25,37 +20,21 @@ const server = new McpServer({
     }
 });
 
-// Register resource handlers
-server.resource("user", new ResourceTemplate("user://{user_id}", { list: undefined }), handleUserResource);
-server.resource("member", new ResourceTemplate("member://{member_id}", { list: undefined }), handleMemberResource);
-server.resource("tier", new ResourceTemplate("tier://{tier_id}", { list: undefined }), handleTierResource);
-server.resource("offer", new ResourceTemplate("offer://{offer_id}", { list: undefined }), handleOfferResource);
-server.resource("newsletter", new ResourceTemplate("newsletter://{newsletter_id}", { list: undefined }), handleNewsletterResource);
+// Register resource handlers (only for Content API supported resources)
 server.resource("post", new ResourceTemplate("post://{post_id}", { list: undefined }), handlePostResource);
 server.resource("blog-info", "blog://info", handleBlogInfoResource);
 
-// Register tools
+// Register tools (only for Content API supported resources)
 import { registerPostTools } from "./tools/posts";
-import { registerMemberTools } from "./tools/members";
-registerPostTools(server);
-registerMemberTools(server);
-import { registerUserTools } from "./tools/users";
-registerUserTools(server);
+import { registerPageTools } from "./tools/pages";
 import { registerTagTools } from "./tools/tags";
+import { registerAuthorTools } from "./tools/authors";
+import { registerSettingsTools } from "./tools/settings";
+registerPostTools(server);
+registerPageTools(server);
 registerTagTools(server);
-import { registerTierTools } from "./tools/tiers";
-registerTierTools(server);
-import { registerOfferTools } from "./tools/offers";
-registerOfferTools(server);
-import { registerNewsletterTools } from "./tools/newsletters";
-registerNewsletterTools(server);
-import { registerInviteTools } from "./tools/invites";
-registerInviteTools(server);
-
-import { registerRoleTools } from "./tools/roles";
-registerRoleTools(server);
-import { registerWebhookTools } from "./tools/webhooks";
-registerWebhookTools(server);
+registerAuthorTools(server);
+registerSettingsTools(server);
 
 import { registerPrompts } from "./prompts";
 registerPrompts(server);

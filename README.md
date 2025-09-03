@@ -19,18 +19,20 @@ Please see the below updated documentation for details on migrating from the Pyt
 
 ---
 
-A Model Context Protocol (MCP) server for interacting with Ghost CMS through LLM interfaces like Claude. This server provides secure and comprehensive access to your Ghost blog, leveraging JWT authentication and a rich set of MCP tools for managing posts, users, members, tiers, offers, and newsletters.
+A Model Context Protocol (MCP) server for **read-only** access to Ghost CMS content through LLM interfaces like Claude. This server provides secure access to your Ghost blog's published content using the Ghost Content API, making it perfect for AI agents to read and analyze Ghost blog content without any risk of modifications.
 
 ![demo](./assets/ghost-mcp-demo.gif)
 
 ## Features
 
-- Secure Ghost Admin API requests with `@tryghost/admin-api`
-- Comprehensive entity access including posts, users, members, tiers, offers, and newsletters
-- Advanced search functionality with both fuzzy and exact matching options
-- Detailed, human-readable output for Ghost entities
-- Robust error handling using custom `GhostError` exceptions
-- Integrated logging support via MCP context for enhanced troubleshooting
+- **Read-only access** to Ghost CMS using the secure Content API
+- Access to **published content** including posts, pages, tags, authors, tiers, and site settings
+- **Content API key** support (no admin privileges required)
+- **Safe for public deployment** - no write operations available
+- Advanced filtering and search functionality with exact matching options
+- Support for including related data (authors, tags) in responses
+- Multiple content formats (HTML, plaintext) supported
+- Robust error handling and integrated logging support
 
 ## Usage
 
@@ -43,7 +45,7 @@ To use this with MCP clients, for instance, Claude Desktop, add the following to
         "args": ["-y", "@fanyangmeng/ghost-mcp"],
         "env": {
             "GHOST_API_URL": "https://yourblog.com",
-            "GHOST_ADMIN_API_KEY": "your_admin_api_key",
+            "GHOST_CONTENT_API_KEY": "your_content_api_key",
             "GHOST_API_VERSION": "v5.0"
         }
       }
@@ -53,91 +55,60 @@ To use this with MCP clients, for instance, Claude Desktop, add the following to
 
 ## Available Resources
 
-The following Ghost CMS resources are available through this MCP server:
+The following **read-only** Ghost CMS resources are available through this MCP server:
 
-- **Posts**: Articles and content published on your Ghost site.
-- **Members**: Registered users and subscribers of your site.
-- **Newsletters**: Email newsletters managed and sent via Ghost.
-- **Offers**: Promotional offers and discounts for members.
-- **Invites**: Invitations for new users or staff to join your Ghost site.
-- **Roles**: User roles and permissions within the Ghost admin.
+- **Posts**: Published articles and content from your Ghost site.
+- **Pages**: Static pages published on your Ghost site.
 - **Tags**: Organizational tags for posts and content.
-- **Tiers**: Subscription tiers and plans for members.
-- **Users**: Admin users and staff accounts.
-- **Webhooks**: Automated event notifications to external services.
+- **Authors**: Authors and content creators on your site.
+- **Tiers**: Subscription tiers and membership plans.
+- **Settings**: Global site settings and configuration.
 
 ## Available Tools
 
-This MCP server exposes a comprehensive set of tools for managing your Ghost CMS via the Model Context Protocol. Each resource provides a set of operations, typically including browsing, reading, creating, editing, and deleting entities. Below is a summary of the available tools:
+This MCP server exposes **read-only** tools for accessing your Ghost CMS content via the Model Context Protocol. All operations are read-only, ensuring your content remains safe from accidental modifications. Below is a summary of the available tools:
 
 ### Posts
-- **Browse Posts**: List posts with optional filters, pagination, and ordering.
-- **Read Post**: Retrieve a post by ID or slug.
-- **Add Post**: Create a new post with title, content, and status.
-- **Edit Post**: Update an existing post by ID.
-- **Delete Post**: Remove a post by ID.
+- **Browse Posts**: List published posts with optional filters, pagination, ordering, and includes (authors, tags).
+- **Read Post**: Retrieve a specific post by ID or slug, with support for different content formats.
 
-### Members
-- **Browse Members**: List members with filters and pagination.
-- **Read Member**: Retrieve a member by ID or email.
-- **Add Member**: Create a new member.
-- **Edit Member**: Update member details.
-- **Delete Member**: Remove a member.
-
-### Newsletters
-- **Browse Newsletters**: List newsletters.
-- **Read Newsletter**: Retrieve a newsletter by ID.
-- **Add Newsletter**: Create a new newsletter.
-- **Edit Newsletter**: Update newsletter details.
-- **Delete Newsletter**: Remove a newsletter.
-
-### Offers
-- **Browse Offers**: List offers.
-- **Read Offer**: Retrieve an offer by ID.
-- **Add Offer**: Create a new offer.
-- **Edit Offer**: Update offer details.
-- **Delete Offer**: Remove an offer.
-
-### Invites
-- **Browse Invites**: List invites.
-- **Add Invite**: Create a new invite.
-- **Delete Invite**: Remove an invite.
-
-### Roles
-- **Browse Roles**: List roles.
-- **Read Role**: Retrieve a role by ID.
+### Pages
+- **Browse Pages**: List published pages with optional filters, pagination, and ordering.
+- **Read Page**: Retrieve a specific page by ID or slug, with support for different content formats.
 
 ### Tags
-- **Browse Tags**: List tags.
-- **Read Tag**: Retrieve a tag by ID or slug.
-- **Add Tag**: Create a new tag.
-- **Edit Tag**: Update tag details.
-- **Delete Tag**: Remove a tag.
+- **Browse Tags**: List all tags with optional filters and pagination.
+- **Read Tag**: Retrieve a specific tag by ID or slug, with optional post count.
+
+### Authors
+- **Browse Authors**: List all authors with optional filters and includes (post counts).
+- **Read Author**: Retrieve a specific author by ID or slug, with optional post information.
 
 ### Tiers
-- **Browse Tiers**: List tiers.
-- **Read Tier**: Retrieve a tier by ID.
-- **Add Tier**: Create a new tier.
-- **Edit Tier**: Update tier details.
-- **Delete Tier**: Remove a tier.
+- **Browse Tiers**: List subscription tiers and membership plans.
+- **Read Tier**: Retrieve a specific tier by ID with detailed information.
 
-### Users
-- **Browse Users**: List users.
-- **Read User**: Retrieve a user by ID or slug.
-- **Edit User**: Update user details.
-- **Delete User**: Remove a user.
+### Settings
+- **Read Settings**: Retrieve global site settings and configuration.
 
-### Webhooks
-- **Browse Webhooks**: List webhooks.
-- **Add Webhook**: Create a new webhook.
-- **Delete Webhook**: Remove a webhook.
+> All tools support common Content API parameters like `include`, `formats`, `filter`, `limit`, `page`, and `order`. Each tool is accessible via the MCP protocol and can be invoked from compatible clients. For detailed parameter schemas and usage, see the source code in `src/tools/`.
 
-> Each tool is accessible via the MCP protocol and can be invoked from compatible clients. For detailed parameter schemas and usage, see the source code in `src/tools/`.
 
+## API Key Setup
+
+To use this MCP server, you'll need a **Ghost Content API key** (not an Admin API key):
+
+1. Go to your Ghost Admin panel → Settings → Integrations
+2. Click "Add custom integration"
+3. Give it a name (e.g., "MCP Content Reader")
+4. Copy the **Content API Key** (not the Admin API Key)
+5. Use this key in your configuration as `GHOST_CONTENT_API_KEY`
+
+The Content API key only provides read access to published content, making it safe for use in AI applications.
 
 ## Error Handling
 
-Ghost MCP Server employs a custom `GhostError` exception to handle API communication errors and processing issues. This ensures clear and descriptive error messages to assist with troubleshooting.
+Ghost MCP Server employs robust error handling for Content API communication errors and processing issues. This ensures clear and descriptive error messages to assist with troubleshooting while maintaining security.
 
 ## Contributing
 

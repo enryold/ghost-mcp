@@ -1,11 +1,11 @@
-import GhostAdminAPI from '@tryghost/admin-api';
-import { GHOST_API_URL, GHOST_ADMIN_API_KEY, GHOST_API_VERSION } from './config';
+import GhostContentAPI from '@tryghost/content-api';
+import { GHOST_API_URL, GHOST_CONTENT_API_KEY, GHOST_API_VERSION } from './config';
 
-// Initialize and export the Ghost Admin API client instance.
+// Initialize and export the Ghost Content API client instance.
 // Configuration is loaded from src/config.ts.
-export const ghostApiClient = new GhostAdminAPI({
+export const ghostApiClient = new GhostContentAPI({
     url: GHOST_API_URL,
-    key: GHOST_ADMIN_API_KEY,
+    key: GHOST_CONTENT_API_KEY,
     version: GHOST_API_VERSION
 });
 
