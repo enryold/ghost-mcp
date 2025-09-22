@@ -5,7 +5,7 @@ import { parse } from 'csv-parse/sync';
 import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import axios from 'axios';
-import { AUTH_TYPE, AUTH_TYPE_BASIC_FILE_PATH, AUTH_TYPE_OAUTH_URL } from './config';
+import { AUTH_TYPE, AUTH_TYPE_BASIC_FILE_PATH, AUTH_TYPE_BASIC_CLIENT_ID, AUTH_TYPE_BASIC_API_URL, AUTH_TYPE_OAUTH_URL } from './config';
 
 export interface AuthCredentials {
     clientId: string;
@@ -20,61 +20,104 @@ export interface TokenResponse {
 
 export interface AuthenticatedRequest extends Request {
     auth?: AuthCredentials;
+    tokenInfo?: TokenInfo;
+}
+
+export interface TokenInfo {
+    token: string;
+    memberAccess: boolean;
 }
 
 class BasicAuthProvider {
-    private credentials: Map<string, string> = new Map();
+    private tokenMap: Map<string, boolean> = new Map();
+    private clientId?: string;
+    private apiUrl?: string;
 
-    constructor(filePath: string) {
-        this.loadCredentials(filePath);
+    constructor(filePath?: string, clientId?: string, apiUrl?: string) {
+        this.clientId = clientId;
+        this.apiUrl = apiUrl;
+
+        if (filePath) {
+            this.loadTokensFromFile(filePath);
+        }
     }
 
-    private loadCredentials(filePath: string) {
+    private loadTokensFromFile(filePath: string) {
         try {
             const csvData = readFileSync(filePath, 'utf-8');
             const records = parse(csvData, {
-                columns: ['access_key', 'secret_key'],
+                columns: ['token', 'member_access'],
                 skip_empty_lines: true,
                 trim: true
             });
 
             for (const record of records) {
-                const typedRecord = record as { access_key?: string; secret_key?: string };
-                if (typedRecord.access_key && typedRecord.secret_key) {
-                    this.credentials.set(typedRecord.access_key, typedRecord.secret_key);
+                const typedRecord = record as { token?: string; member_access?: string };
+                if (typedRecord.token) {
+                    const memberAccess = typedRecord.member_access?.toLowerCase() === 'true';
+                    this.tokenMap.set(typedRecord.token, memberAccess);
                 }
             }
 
-            console.log(`Loaded ${this.credentials.size} credential pairs from ${filePath}`);
+            console.log(`Loaded ${this.tokenMap.size} tokens from ${filePath}`);
         } catch (error) {
-            console.error(`Failed to load credentials from ${filePath}:`, error);
+            console.error(`Failed to load tokens from ${filePath}:`, error);
             throw error;
         }
     }
 
+    async validateToken(token: string): Promise<TokenInfo | null> {
+        // Method 1: Check against CSV file if available
+        if (this.tokenMap.size > 0) {
+            const memberAccess = this.tokenMap.get(token);
+            if (memberAccess !== undefined) {
+                return { token, memberAccess };
+            }
+            return null;
+        }
+
+        // Method 2: Validate via 3rd party API if configured
+        if (this.clientId && this.apiUrl) {
+            return await this.validateTokenViaAPI(token);
+        }
+
+        return null;
+    }
+
+    private async validateTokenViaAPI(token: string): Promise<TokenInfo | null> {
+        try {
+            const response = await axios.post(`${this.apiUrl}/validate`, {
+                client_id: this.clientId,
+                token: token
+            }, {
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                timeout: 5000
+            });
+
+            const responseData = response.data as { valid?: boolean; member_access?: boolean };
+            if (response.status === 200 && responseData.valid === true) {
+                return {
+                    token,
+                    memberAccess: responseData.member_access || false
+                };
+            }
+            return null;
+        } catch (error) {
+            console.error('Token validation via API failed:', error);
+            return null;
+        }
+    }
+
     validateCredentials(clientId: string, clientSecret: string): boolean {
-        const storedSecret = this.credentials.get(clientId);
-        return storedSecret === clientSecret;
+        // Not used in new token-based approach
+        return false;
     }
 
     generateToken(clientId: string): TokenResponse {
-        // Generate a simple hardcoded token for basic auth
-        const token = Buffer.from(`${clientId}:${Date.now()}`).toString('base64');
-        return {
-            access_token: token,
-            token_type: 'Bearer',
-            expires_in: 3600 // 1 hour
-        };
-    }
-
-    validateToken(token: string): boolean {
-        try {
-            // For basic auth, we just check if the token is properly formatted
-            const decoded = Buffer.from(token, 'base64').toString();
-            return decoded.includes(':');
-        } catch {
-            return false;
-        }
+        // Not used in new token-based approach
+        throw new Error('Token generation not supported in new BASIC auth mode');
     }
 }
 
@@ -153,9 +196,11 @@ export class AuthManager {
     private initialize() {
         switch (AUTH_TYPE) {
             case 'BASIC':
-                if (AUTH_TYPE_BASIC_FILE_PATH) {
-                    this.basicProvider = new BasicAuthProvider(AUTH_TYPE_BASIC_FILE_PATH);
-                }
+                this.basicProvider = new BasicAuthProvider(
+                    AUTH_TYPE_BASIC_FILE_PATH,
+                    AUTH_TYPE_BASIC_CLIENT_ID,
+                    AUTH_TYPE_BASIC_API_URL
+                );
                 break;
             case 'OAUTH':
                 if (AUTH_TYPE_OAUTH_URL) {
@@ -188,21 +233,21 @@ export class AuthManager {
         }
     }
 
-    async validateToken(token: string): Promise<boolean> {
+    async validateToken(token: string): Promise<TokenInfo | null> {
         switch (AUTH_TYPE) {
             case 'NONE':
-                return true;
+                return { token, memberAccess: true }; // No auth means full access
             case 'BASIC':
-                return this.basicProvider?.validateToken(token) || false;
+                return await this.basicProvider?.validateToken(token) || null;
             case 'OAUTH':
                 try {
                     await this.oauthProvider?.validateToken(token);
-                    return true;
+                    return { token, memberAccess: true }; // OAuth tokens get full access
                 } catch {
-                    return false;
+                    return null;
                 }
             default:
-                return false;
+                return null;
         }
     }
 }
@@ -230,8 +275,18 @@ export function extractBearerToken(req: Request): string | null {
     return null;
 }
 
+export function extractTokenFromUrl(req: Request): string | null {
+    const token = req.query.token as string;
+    return token || null;
+}
+
 export function authMiddleware() {
     return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+        // Skip authentication for health endpoint
+        if (req.path === '/health') {
+            return next();
+        }
+
         if (AUTH_TYPE === 'NONE') {
             return next();
         }
@@ -239,8 +294,9 @@ export function authMiddleware() {
         // Check for bearer token (for authenticated MCP requests)
         const bearerToken = extractBearerToken(req);
         if (bearerToken) {
-            const isValidToken = await authManager.validateToken(bearerToken);
-            if (isValidToken) {
+            const tokenInfo = await authManager.validateToken(bearerToken);
+            if (tokenInfo) {
+                req.tokenInfo = tokenInfo;
                 return next();
             } else {
                 return res.status(401).json({
@@ -254,12 +310,34 @@ export function authMiddleware() {
             }
         }
 
-        // No bearer token provided - authentication required
+        // Check for token in URL query parameter (for BASIC auth)
+        if (AUTH_TYPE === 'BASIC') {
+            const urlToken = extractTokenFromUrl(req);
+            if (urlToken) {
+                const tokenInfo = await authManager.validateToken(urlToken);
+                if (tokenInfo) {
+                    req.tokenInfo = tokenInfo;
+                    return next();
+                } else {
+                    return res.status(401).json({
+                        jsonrpc: '2.0',
+                        error: {
+                            code: -32000,
+                            message: 'Unauthorized: Invalid token'
+                        },
+                        id: null
+                    });
+                }
+            }
+        }
+
+        // No valid authentication provided
+        const authMethod = AUTH_TYPE === 'BASIC' ? 'Bearer token or ?token= query parameter' : 'Bearer token';
         return res.status(401).json({
             jsonrpc: '2.0',
             error: {
                 code: -32000,
-                message: 'Unauthorized: Bearer token required'
+                message: `Unauthorized: ${authMethod} required`
             },
             id: null
         });

@@ -8,6 +8,8 @@ export const GHOST_API_VERSION: string = process.env.GHOST_API_VERSION as string
 export type AuthType = 'NONE' | 'BASIC' | 'OAUTH';
 export const AUTH_TYPE: AuthType = (process.env.AUTH_TYPE as AuthType) || 'NONE';
 export const AUTH_TYPE_BASIC_FILE_PATH: string = process.env.AUTH_TYPE_BASIC_FILE_PATH as string;
+export const AUTH_TYPE_BASIC_CLIENT_ID: string = process.env.AUTH_TYPE_BASIC_CLIENT_ID as string;
+export const AUTH_TYPE_BASIC_API_URL: string = process.env.AUTH_TYPE_BASIC_API_URL as string;
 export const AUTH_TYPE_OAUTH_URL: string = process.env.AUTH_TYPE_OAUTH_URL as string;
 
 // Basic validation to ensure required environment variables are set
@@ -27,8 +29,8 @@ if (GHOST_ADMIN_API_KEY) {
 }
 
 // Validate authentication configuration
-if (AUTH_TYPE === 'BASIC' && !AUTH_TYPE_BASIC_FILE_PATH) {
-    console.error("Error: AUTH_TYPE_BASIC_FILE_PATH environment variable is required when AUTH_TYPE=BASIC");
+if (AUTH_TYPE === 'BASIC' && !AUTH_TYPE_BASIC_FILE_PATH && (!AUTH_TYPE_BASIC_CLIENT_ID || !AUTH_TYPE_BASIC_API_URL)) {
+    console.error("Error: For BASIC auth, either AUTH_TYPE_BASIC_FILE_PATH or both AUTH_TYPE_BASIC_CLIENT_ID and AUTH_TYPE_BASIC_API_URL are required");
     process.exit(1);
 }
 

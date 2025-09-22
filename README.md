@@ -196,20 +196,54 @@ No authentication required. Suitable for private deployments or testing.
 AUTH_TYPE=NONE
 ```
 
-### 2. BASIC Authentication (CSV File)
-Simple client ID/secret authentication using a CSV file. Great for testing and small deployments.
+### 2. BASIC Authentication (Token-Based)
+Simple token-based authentication with two validation methods. Tokens are passed via URL query parameter (`?token=your_token`).
 
+#### Method 1: CSV File Validation
 ```bash
 AUTH_TYPE=BASIC
 AUTH_TYPE_BASIC_FILE_PATH=./auth-credentials.csv
 ```
 
-Create a CSV file with your client credentials:
+Create a CSV file with valid tokens and member access permissions:
 ```csv
-access_key,secret_key
-test_client_1,secret_key_123
-demo_app,demo_secret_456
-my_app_id,my_secret_789
+token,member_access
+abc123def456,true
+xyz789ghi012,false
+mno345pqr678,true
+```
+
+The `member_access` column determines if the token can access member-reserved posts (requires `GHOST_ADMIN_API_KEY` to be configured).
+
+#### Method 2: 3rd Party API Validation
+```bash
+AUTH_TYPE=BASIC
+AUTH_TYPE_BASIC_CLIENT_ID=your_tenant_id
+AUTH_TYPE_BASIC_API_URL=https://your-auth-api.com
+```
+
+The API endpoint `/validate` should accept POST requests with:
+```json
+{
+  "client_id": "your_tenant_id",
+  "token": "user_provided_token"
+}
+```
+
+And return:
+```json
+{
+  "valid": true,
+  "member_access": true
+}
+```
+
+The `member_access` field determines if the token can access member-reserved posts (requires `GHOST_ADMIN_API_KEY` to be configured).
+
+#### Usage
+Connect to the MCP server with the token in the URL:
+```
+http://localhost:3000/message?token=abc123def456
 ```
 
 ### 3. OAuth Authentication
