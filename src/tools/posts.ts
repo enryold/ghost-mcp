@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ghostApiClient, ghostAdminApiClient, getPosts, getPostById } from "../ghostApi";
+import { getSessionTokenInfo } from "../auth";
 
 // Parameter schemas as ZodRawShape (object literals)
 const browseParams = {
@@ -35,9 +36,10 @@ export function registerPostTools(server: McpServer) {
         ...(args.include && { include: args.include.split(',') as any }),
         ...(args.formats && { formats: args.formats.split(',') as any })
       };
-      
+
       const includeMemberContent = args.includeMemberContent || false;
-      
+
+      // Check if Admin API is configured
       if (includeMemberContent && !ghostAdminApiClient) {
         return {
           content: [
@@ -48,7 +50,10 @@ export function registerPostTools(server: McpServer) {
           ],
         };
       }
-      
+
+      // For now, allow member content access if Admin API is available
+      // TODO: Check token permissions when session context is available
+
       const posts = await getPosts(includeMemberContent, options);
       return {
         content: [
@@ -70,9 +75,10 @@ export function registerPostTools(server: McpServer) {
       if (!args.id && !args.slug) {
         throw new Error("Either id or slug must be provided");
       }
-      
+
       const includeMemberContent = args.includeMemberContent || false;
-      
+
+      // Check if Admin API is configured
       if (includeMemberContent && !ghostAdminApiClient) {
         return {
           content: [
@@ -83,10 +89,13 @@ export function registerPostTools(server: McpServer) {
           ],
         };
       }
-      
+
+      // For now, allow member content access if Admin API is available
+      // TODO: Check token permissions when session context is available
+
       const postId = args.id || args.slug!;
       const post = await getPostById(postId, includeMemberContent);
-      
+
       return {
         content: [
           {

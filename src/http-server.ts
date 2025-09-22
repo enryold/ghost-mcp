@@ -21,7 +21,7 @@ import { registerSettingsTools } from "./tools/settings";
 import { registerPrompts } from "./prompts";
 
 // Import authentication
-import { authMiddleware } from "./auth";
+import { authMiddleware, setSessionTokenInfo } from "./auth";
 import { oauthRouter } from "./oauth";
 import { AUTH_TYPE } from "./config";
 
@@ -100,6 +100,8 @@ function createMcpServer() {
 
 // Map to store transports by session ID
 const transports: Record<string, StreamableHTTPServerTransport> = {};
+// Map to store current session context
+export const currentSession: { sessionId?: string } = {};
 
 // Set up HTTP transport
 async function startServer() {
@@ -120,6 +122,11 @@ async function startServer() {
                     onsessioninitialized: (sessionId: string) => {
                         console.log(`Session initialized with ID: ${sessionId}`);
                         transports[sessionId] = transport;
+
+                        // Store token info for this session if available
+                        if (req.tokenInfo) {
+                            setSessionTokenInfo(sessionId, req.tokenInfo);
+                        }
                     }
                 });
                 
@@ -129,6 +136,8 @@ async function startServer() {
                     if (sid && transports[sid]) {
                         console.log(`Transport closed for session ${sid}`);
                         delete transports[sid];
+                        // Clean up session store
+                        setSessionTokenInfo(sid, { token: '', memberAccess: false });
                     }
                 };
                 

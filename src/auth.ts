@@ -254,6 +254,17 @@ export class AuthManager {
 
 export const authManager = new AuthManager();
 
+// Simple session store for token info
+export const sessionStore = new Map<string, TokenInfo>();
+
+export function setSessionTokenInfo(sessionId: string, tokenInfo: TokenInfo) {
+    sessionStore.set(sessionId, tokenInfo);
+}
+
+export function getSessionTokenInfo(sessionId: string): TokenInfo | null {
+    return sessionStore.get(sessionId) || null;
+}
+
 export function extractCredentials(req: Request): AuthCredentials | null {
     const clientId = req.headers['x-client-id'] as string;
     const clientSecret = req.headers['x-client-secret'] as string;
