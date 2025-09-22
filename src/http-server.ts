@@ -20,12 +20,20 @@ import { registerAuthorTools } from "./tools/authors";
 import { registerSettingsTools } from "./tools/settings";
 import { registerPrompts } from "./prompts";
 
+// Import authentication
+import { authMiddleware } from "./auth";
+import { oauthRouter } from "./oauth";
+import { AUTH_TYPE } from "./config";
+
 // Create Express app
 const app = express();
 const port = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
+
+// OAuth routes (must be before auth middleware)
+app.use('/', oauthRouter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -38,15 +46,27 @@ app.get('/health', (req, res) => {
 
 // Root endpoint
 app.get('/', (req, res) => {
+  const endpoints: any = {
+    'GET /health': 'Health check',
+    'POST /message': 'MCP message endpoint (Streamable HTTP transport)',
+  };
+
+  // Add auth-specific endpoints
+  if (AUTH_TYPE !== 'NONE') {
+    endpoints['POST /oauth/token'] = 'OAuth token endpoint (client_credentials grant)';
+    endpoints['GET /.well-known/oauth-authorization-server'] = 'OAuth discovery endpoint';
+    endpoints['GET /oauth/health'] = 'OAuth health check';
+  }
+
   res.json({
     name: 'Ghost MCP Readonly Server',
     description: 'Read-only MCP server for accessing Ghost CMS content safely',
     version: '1.0.0',
-    endpoints: {
-      'GET /health': 'Health check',
-      'POST /message': 'MCP message endpoint (Streamable HTTP transport)',
-    },
-    usage: 'Connect via MCP client to /message endpoint'
+    auth_type: AUTH_TYPE,
+    endpoints,
+    usage: AUTH_TYPE === 'NONE'
+      ? 'Connect via MCP client to /message endpoint'
+      : 'Obtain access token via /oauth/token, then connect with Bearer token to /message endpoint'
   });
 });
 
@@ -148,8 +168,8 @@ async function startServer() {
         }
     };
     
-    // Set up MCP endpoint to handle all HTTP methods
-    app.all('/message', mcpHandler);
+    // Set up MCP endpoint to handle all HTTP methods with authentication
+    app.all('/message', authMiddleware(), mcpHandler);
     
     // Start the HTTP server
     app.listen(port, () => {

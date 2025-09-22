@@ -9,6 +9,7 @@ services:
     environment:
       - GHOST_API_URL=${GHOST_API_URL}
       - GHOST_CONTENT_API_KEY=${GHOST_CONTENT_API_KEY}
+      - GHOST_ADMIN_API_KEY=${GHOST_ADMIN_API_KEY}
       - GHOST_API_VERSION=${GHOST_API_VERSION:-v5.0}
       - PORT=3000
     ports:

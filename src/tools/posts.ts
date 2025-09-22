@@ -1,7 +1,7 @@
 // src/tools/posts.ts
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ghostApiClient } from "../ghostApi";
+import { ghostApiClient, ghostAdminApiClient, getPosts, getPostById } from "../ghostApi";
 
 // Parameter schemas as ZodRawShape (object literals)
 const browseParams = {
@@ -11,12 +11,14 @@ const browseParams = {
   order: z.string().optional(),
   include: z.string().optional(),
   formats: z.string().optional(),
+  includeMemberContent: z.boolean().optional(),
 };
 const readParams = {
   id: z.string().nullable().optional(),
   slug: z.string().nullable().optional(),
   include: z.string().optional(),
   formats: z.string().optional(),
+  includeMemberContent: z.boolean().optional(),
 };
 
 export function registerPostTools(server: McpServer) {
@@ -33,7 +35,21 @@ export function registerPostTools(server: McpServer) {
         ...(args.include && { include: args.include.split(',') as any }),
         ...(args.formats && { formats: args.formats.split(',') as any })
       };
-      const posts = await ghostApiClient.posts.browse(options);
+      
+      const includeMemberContent = args.includeMemberContent || false;
+      
+      if (includeMemberContent && !ghostAdminApiClient) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Member content access requested but Admin API key not configured. Please set GHOST_ADMIN_API_KEY environment variable.",
+            },
+          ],
+        };
+      }
+      
+      const posts = await getPosts(includeMemberContent, options);
       return {
         content: [
           {
@@ -54,12 +70,23 @@ export function registerPostTools(server: McpServer) {
       if (!args.id && !args.slug) {
         throw new Error("Either id or slug must be provided");
       }
-      const identifier = args.id ? { id: args.id } : { slug: args.slug! };
-      const options: any = { 
-        ...(args.include && { include: args.include.split(',') as any }),
-        ...(args.formats && { formats: args.formats.split(',') as any })
-      };
-      const post = await ghostApiClient.posts.read(identifier, options);
+      
+      const includeMemberContent = args.includeMemberContent || false;
+      
+      if (includeMemberContent && !ghostAdminApiClient) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Member content access requested but Admin API key not configured. Please set GHOST_ADMIN_API_KEY environment variable.",
+            },
+          ],
+        };
+      }
+      
+      const postId = args.id || args.slug!;
+      const post = await getPostById(postId, includeMemberContent);
+      
       return {
         content: [
           {

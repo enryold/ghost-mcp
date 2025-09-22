@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npm install:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(npm run build:*)",
+      "Bash(AUTH_TYPE=NONE GHOST_API_URL=https://demo.ghost.io GHOST_CONTENT_API_KEY=22444f78447824223cefc48062 npm run start:http)",
+      "Bash(curl:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

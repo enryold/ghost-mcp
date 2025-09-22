@@ -9,6 +9,7 @@ This is a **read-only** fork of the original Ghost MCP server that has been comp
 - **Safe for AI agents** - No risk of content modification or deletion
 - **Docker support** - Easy deployment with Docker and Docker Compose
 - **Published content only** - Access to posts, pages, tags, authors, tiers, and settings
+- **Optional Admin API** - Optional Admin API key support for member-reserved content access
 
 ### What's Different From the Original
 
@@ -29,6 +30,7 @@ A Model Context Protocol (MCP) server for **read-only** access to Ghost CMS cont
 - **Read-only access** to Ghost CMS using the secure Content API
 - Access to **published content** including posts, pages, tags, authors, tiers, and site settings
 - **Content API key** support (no admin privileges required)
+- **Optional Admin API** support for accessing member-reserved posts
 - **Safe for public deployment** - no write operations available
 - Advanced filtering and search functionality with exact matching options
 - Support for including related data (authors, tags) in responses
@@ -49,6 +51,7 @@ To use this with MCP clients, for instance, Claude Desktop, add the following to
         "env": {
             "GHOST_API_URL": "https://yourblog.com",
             "GHOST_CONTENT_API_KEY": "your_content_api_key",
+            "GHOST_ADMIN_API_KEY": "your_admin_api_key_optional",
             "GHOST_API_VERSION": "v5.0"
         }
       }
@@ -75,6 +78,7 @@ To use this with MCP clients, for instance, Claude Desktop, add the following to
    ```bash
    GHOST_API_URL=https://yourblog.com
    GHOST_CONTENT_API_KEY=your_content_api_key_here
+   GHOST_ADMIN_API_KEY=your_admin_api_key_here_optional
    GHOST_API_VERSION=v5.0
    ```
    
@@ -156,8 +160,8 @@ The following **read-only** Ghost CMS resources are available through this MCP s
 This MCP server exposes **read-only** tools for accessing your Ghost CMS content via the Model Context Protocol. All operations are read-only, ensuring your content remains safe from accidental modifications. Below is a summary of the available tools:
 
 ### Posts
-- **Browse Posts**: List published posts with optional filters, pagination, ordering, and includes (authors, tags).
-- **Read Post**: Retrieve a specific post by ID or slug, with support for different content formats.
+- **Browse Posts**: List published posts with optional filters, pagination, ordering, and includes (authors, tags). Use `includeMemberContent: true` to access member-reserved posts (requires Admin API key).
+- **Read Post**: Retrieve a specific post by ID or slug, with support for different content formats. Use `includeMemberContent: true` to access member-reserved posts (requires Admin API key).
 
 ### Pages
 - **Browse Pages**: List published pages with optional filters, pagination, and ordering.
@@ -181,17 +185,91 @@ This MCP server exposes **read-only** tools for accessing your Ghost CMS content
 > All tools support common Content API parameters like `include`, `formats`, `filter`, `limit`, `page`, and `order`. Each tool is accessible via the MCP protocol and can be invoked from compatible clients. For detailed parameter schemas and usage, see the source code in `src/tools/`.
 
 
+## Authentication
+
+This MCP server supports **three authentication modes** for different deployment scenarios:
+
+### 1. NONE Authentication (Default)
+No authentication required. Suitable for private deployments or testing.
+
+```bash
+AUTH_TYPE=NONE
+```
+
+### 2. BASIC Authentication (CSV File)
+Simple client ID/secret authentication using a CSV file. Great for testing and small deployments.
+
+```bash
+AUTH_TYPE=BASIC
+AUTH_TYPE_BASIC_FILE_PATH=./auth-credentials.csv
+```
+
+Create a CSV file with your client credentials:
+```csv
+access_key,secret_key
+test_client_1,secret_key_123
+demo_app,demo_secret_456
+my_app_id,my_secret_789
+```
+
+### 3. OAuth Authentication
+Full OAuth 2.0 client_credentials flow with external OAuth provider.
+
+```bash
+AUTH_TYPE=OAUTH
+AUTH_TYPE_OAUTH_URL=https://your-oauth-provider.com
+```
+
+#### OAuth Flow Usage
+
+1. **Get an access token:**
+```bash
+curl -X POST http://localhost:3000/oauth/token \
+  -H "Content-Type: application/json" \
+  -d '{
+    "grant_type": "client_credentials",
+    "client_id": "your_client_id",
+    "client_secret": "your_client_secret"
+  }'
+```
+
+2. **Use the token in MCP requests:**
+```bash
+curl -X POST http://localhost:3000/message \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "method": "initialize", "id": 1}'
+```
+
+3. **OAuth Discovery:**
+The server provides OAuth discovery at `/.well-known/oauth-authorization-server`
+
+### Authentication Endpoints (BASIC/OAUTH modes only)
+- `POST /oauth/token` - Exchange credentials for access token
+- `GET /.well-known/oauth-authorization-server` - OAuth discovery endpoint
+- `GET /oauth/health` - OAuth health check
+
 ## API Key Setup
 
-To use this MCP server, you'll need a **Ghost Content API key** (not an Admin API key):
+To use this MCP server, you'll need a **Ghost Content API key**:
 
 1. Go to your Ghost Admin panel → Settings → Integrations
 2. Click "Add custom integration"
 3. Give it a name (e.g., "MCP Content Reader")
-4. Copy the **Content API Key** (not the Admin API Key)
+4. Copy the **Content API Key**
 5. Use this key in your configuration as `GHOST_CONTENT_API_KEY`
 
 The Content API key only provides read access to published content, making it safe for use in AI applications.
+
+### Optional: Member-Reserved Content Access
+
+To access member-reserved posts, you can optionally provide a **Ghost Admin API key**:
+
+1. From the same integration page, copy the **Admin API Key**
+2. Use this key in your configuration as `GHOST_ADMIN_API_KEY`
+3. Set `includeMemberContent: true` when calling post tools
+
+**Important:** The Admin API key is used **read-only** for accessing member-reserved content. No write operations are supported even with an Admin API key configured.
 
 ## Error Handling
 

@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ghostApiClient } from './ghostApi';
+import { ghostApiClient, getPostById } from './ghostApi';
 import { Post, User, Member, Tier, Offer, Newsletter } from './models'; // Import data models
 
 // Type definitions compatible with MCP SDK resource handler expectations
@@ -165,29 +165,22 @@ export const handleNewsletterResource: ReadResourceTemplateCallback = async (uri
 export const handlePostResource: ReadResourceTemplateCallback = async (uri: URL, variables: Variables): Promise<any> => {
     try {
         const postId = variables.post_id as string; // Access parameter from variables
-         if (!postId) {
-            // TODO: Return a structured MCP error for missing parameter
+        const includeMemberContent = variables.include_member_content === 'true'; // Parse boolean from string
+        
+        if (!postId) {
             throw new Error("Missing post_id parameter");
         }
-        // TODO: Use ghostApiClient to fetch post data by ID
-        // const post: Post = await ghostApiClient.posts.read({ id: postId });
-        // return {
-        //     contents: [{
-        //         uri: uri.href,
-        //         text: JSON.stringify(post, null, 2), // Or format as needed
-        //         mimeType: 'application/json'
-        //     }]
-        // };
+        
+        const post: Post = await getPostById(postId, includeMemberContent);
         return {
             contents: [{
                 uri: uri.href,
-                text: `Post resource requested for ID: ${postId}`,
-                mimeType: 'text/plain'
+                text: JSON.stringify(post, null, 2),
+                mimeType: 'application/json'
             }]
         };
     } catch (error) {
         console.error(`Error fetching post ${variables.post_id}:`, error);
-        // TODO: Return an error result in the MCP format
         throw error;
     }
 };
