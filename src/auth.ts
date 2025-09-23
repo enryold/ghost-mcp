@@ -2,10 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { parse } from 'csv-parse/sync';
-import jwt from 'jsonwebtoken';
-import jwksClient from 'jwks-rsa';
 import axios from 'axios';
-import { AUTH_TYPE, AUTH_TYPE_BASIC_FILE_PATH, AUTH_TYPE_BASIC_CLIENT_ID, AUTH_TYPE_BASIC_API_URL, AUTH_TYPE_OAUTH_URL } from './config';
+import { AUTH_TYPE, AUTH_TYPE_BASIC_FILE_PATH, AUTH_TYPE_BASIC_CLIENT_ID, AUTH_TYPE_BASIC_API_URL } from './config';
 
 export interface AuthCredentials {
     clientId: string;
@@ -121,73 +119,9 @@ class BasicAuthProvider {
     }
 }
 
-class OAuthProvider {
-    private jwksClientInstance: jwksClient.JwksClient;
-    private oauthUrl: string;
-
-    constructor(oauthUrl: string) {
-        this.oauthUrl = oauthUrl;
-        this.jwksClientInstance = jwksClient({
-            jwksUri: `${oauthUrl}/.well-known/jwks.json`,
-            requestHeaders: {},
-            timeout: 30000,
-        });
-    }
-
-    async validateToken(token: string): Promise<any> {
-        try {
-            const decoded = jwt.decode(token, { complete: true });
-            if (!decoded || !decoded.header.kid) {
-                throw new Error('Invalid token structure');
-            }
-
-            const key = await this.jwksClientInstance.getSigningKey(decoded.header.kid);
-            const signingKey = key.getPublicKey();
-
-            const payload = jwt.verify(token, signingKey, {
-                algorithms: ['RS256']
-            });
-
-            return payload;
-        } catch (error) {
-            console.error('Token validation failed:', error);
-            throw error;
-        }
-    }
-
-    async exchangeCredentialsForToken(clientId: string, clientSecret: string): Promise<TokenResponse> {
-        try {
-            const response = await axios.post(`${this.oauthUrl}/oauth/token`, {
-                grant_type: 'client_credentials',
-                client_id: clientId,
-                client_secret: clientSecret
-            }, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            const responseData = response.data as { access_token?: string; token_type?: string; expires_in?: number };
-
-            if (response.status !== 200 || !responseData.access_token) {
-                throw new Error('Failed to obtain access token');
-            }
-
-            return {
-                access_token: responseData.access_token,
-                token_type: responseData.token_type || 'Bearer',
-                expires_in: responseData.expires_in
-            };
-        } catch (error) {
-            console.error('OAuth token exchange failed:', error);
-            throw error;
-        }
-    }
-}
 
 export class AuthManager {
     private basicProvider?: BasicAuthProvider;
-    private oauthProvider?: OAuthProvider;
 
     constructor() {
         this.initialize();
@@ -201,11 +135,6 @@ export class AuthManager {
                     AUTH_TYPE_BASIC_CLIENT_ID,
                     AUTH_TYPE_BASIC_API_URL
                 );
-                break;
-            case 'OAUTH':
-                if (AUTH_TYPE_OAUTH_URL) {
-                    this.oauthProvider = new OAuthProvider(AUTH_TYPE_OAUTH_URL);
-                }
                 break;
             case 'NONE':
             default:
@@ -223,11 +152,6 @@ export class AuthManager {
                     throw new Error('Invalid credentials');
                 }
                 return this.basicProvider.generateToken(clientId);
-            case 'OAUTH':
-                if (!this.oauthProvider) {
-                    throw new Error('OAuth provider not initialized');
-                }
-                return await this.oauthProvider.exchangeCredentialsForToken(clientId, clientSecret);
             default:
                 throw new Error('Unknown authentication type');
         }
@@ -239,13 +163,6 @@ export class AuthManager {
                 return { token, memberAccess: true }; // No auth means full access
             case 'BASIC':
                 return await this.basicProvider?.validateToken(token) || null;
-            case 'OAUTH':
-                try {
-                    await this.oauthProvider?.validateToken(token);
-                    return { token, memberAccess: true }; // OAuth tokens get full access
-                } catch {
-                    return null;
-                }
             default:
                 return null;
         }

@@ -22,7 +22,6 @@ import { registerPrompts } from "./prompts";
 
 // Import authentication
 import { authMiddleware, setSessionTokenInfo } from "./auth";
-import { oauthRouter } from "./oauth";
 import { AUTH_TYPE } from "./config";
 
 // Create Express app
@@ -32,8 +31,6 @@ const port = process.env.PORT || 3000;
 // Middleware
 app.use(express.json());
 
-// OAuth routes (must be before auth middleware)
-app.use('/', oauthRouter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -51,12 +48,6 @@ app.get('/', (req, res) => {
     'POST /message': 'MCP message endpoint (Streamable HTTP transport)',
   };
 
-  // Add auth-specific endpoints
-  if (AUTH_TYPE !== 'NONE') {
-    endpoints['POST /oauth/token'] = 'OAuth token endpoint (client_credentials grant)';
-    endpoints['GET /.well-known/oauth-authorization-server'] = 'OAuth discovery endpoint';
-    endpoints['GET /oauth/health'] = 'OAuth health check';
-  }
 
   res.json({
     name: 'Ghost MCP Readonly Server',
@@ -66,7 +57,7 @@ app.get('/', (req, res) => {
     endpoints,
     usage: AUTH_TYPE === 'NONE'
       ? 'Connect via MCP client to /message endpoint'
-      : 'Obtain access token via /oauth/token, then connect with Bearer token to /message endpoint'
+      : 'Authenticate with Bearer token to /message endpoint'
   });
 });
 
@@ -115,6 +106,9 @@ async function startServer() {
             if (sessionId && transports[sessionId]) {
                 // Reuse existing transport
                 transport = transports[sessionId];
+                // Set current session context
+                currentSession.sessionId = sessionId;
+                console.log(`[SESSION] Reusing existing session: ${sessionId}`);
             } else if (!sessionId && isInitializeRequest(req.body)) {
                 // New initialization request
                 transport = new StreamableHTTPServerTransport({
@@ -122,10 +116,15 @@ async function startServer() {
                     onsessioninitialized: (sessionId: string) => {
                         console.log(`Session initialized with ID: ${sessionId}`);
                         transports[sessionId] = transport;
+                        // Set current session context
+                        currentSession.sessionId = sessionId;
 
                         // Store token info for this session if available
                         if (req.tokenInfo) {
+                            console.log(`[SESSION] Storing token info for session ${sessionId}:`, req.tokenInfo);
                             setSessionTokenInfo(sessionId, req.tokenInfo);
+                        } else {
+                            console.log(`[SESSION] No token info available for session ${sessionId}`);
                         }
                     }
                 });

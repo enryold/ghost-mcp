@@ -187,7 +187,7 @@ This MCP server exposes **read-only** tools for accessing your Ghost CMS content
 
 ## Authentication
 
-This MCP server supports **three authentication modes** for different deployment scenarios:
+This MCP server supports **two authentication modes** for different deployment scenarios:
 
 ### 1. NONE Authentication (Default)
 No authentication required. Suitable for private deployments or testing.
@@ -246,42 +246,6 @@ Connect to the MCP server with the token in the URL:
 http://localhost:3000/message?token=abc123def456
 ```
 
-### 3. OAuth Authentication
-Full OAuth 2.0 client_credentials flow with external OAuth provider.
-
-```bash
-AUTH_TYPE=OAUTH
-AUTH_TYPE_OAUTH_URL=https://your-oauth-provider.com
-```
-
-#### OAuth Flow Usage
-
-1. **Get an access token:**
-```bash
-curl -X POST http://localhost:3000/oauth/token \
-  -H "Content-Type: application/json" \
-  -d '{
-    "grant_type": "client_credentials",
-    "client_id": "your_client_id",
-    "client_secret": "your_client_secret"
-  }'
-```
-
-2. **Use the token in MCP requests:**
-```bash
-curl -X POST http://localhost:3000/message \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc": "2.0", "method": "initialize", "id": 1}'
-```
-
-3. **OAuth Discovery:**
-The server provides OAuth discovery at `/.well-known/oauth-authorization-server`
-
-### Authentication Endpoints (BASIC/OAUTH modes only)
-- `POST /oauth/token` - Exchange credentials for access token
-- `GET /.well-known/oauth-authorization-server` - OAuth discovery endpoint
-- `GET /oauth/health` - OAuth health check
 
 ## API Key Setup
 

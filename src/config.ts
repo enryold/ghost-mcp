@@ -5,12 +5,11 @@ export const GHOST_ADMIN_API_KEY: string = process.env.GHOST_ADMIN_API_KEY as st
 export const GHOST_API_VERSION: string = process.env.GHOST_API_VERSION as string || 'v5.0'; // Default to v5.0
 
 // Authentication configuration
-export type AuthType = 'NONE' | 'BASIC' | 'OAUTH';
+export type AuthType = 'NONE' | 'BASIC';
 export const AUTH_TYPE: AuthType = (process.env.AUTH_TYPE as AuthType) || 'NONE';
 export const AUTH_TYPE_BASIC_FILE_PATH: string = process.env.AUTH_TYPE_BASIC_FILE_PATH as string;
 export const AUTH_TYPE_BASIC_CLIENT_ID: string = process.env.AUTH_TYPE_BASIC_CLIENT_ID as string;
 export const AUTH_TYPE_BASIC_API_URL: string = process.env.AUTH_TYPE_BASIC_API_URL as string;
-export const AUTH_TYPE_OAUTH_URL: string = process.env.AUTH_TYPE_OAUTH_URL as string;
 
 // Basic validation to ensure required environment variables are set
 if (!GHOST_API_URL) {
@@ -34,9 +33,5 @@ if (AUTH_TYPE === 'BASIC' && !AUTH_TYPE_BASIC_FILE_PATH && (!AUTH_TYPE_BASIC_CLI
     process.exit(1);
 }
 
-if (AUTH_TYPE === 'OAUTH' && !AUTH_TYPE_OAUTH_URL) {
-    console.error("Error: AUTH_TYPE_OAUTH_URL environment variable is required when AUTH_TYPE=OAUTH");
-    process.exit(1);
-}
 
 console.log(`Authentication mode: ${AUTH_TYPE}`);

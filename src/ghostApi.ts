@@ -21,15 +21,23 @@ export const ghostAdminApiClient = GHOST_ADMIN_API_KEY ? new GhostAdminAPI({
 export async function getPostById(postId: string, includeMemberContent: boolean = false): Promise<any> {
     try {
         // Determine if postId is a slug or ID
-        const identifier = postId.length === 24 ? { id: postId } : { slug: postId };
+        // Ghost post IDs are typically 24-character alphanumeric strings (MongoDB ObjectId format)
+        // Slugs contain hyphens and are URL-friendly
+        const isId = /^[a-f0-9]{24}$/i.test(postId);
+        const identifier = isId ? { id: postId } : { slug: postId };
         
         if (includeMemberContent && ghostAdminApiClient) {
             // Use Admin API to access member-reserved content
-            const post = await ghostAdminApiClient.posts.read(identifier, { include: 'tags,authors' });
+            const post = await ghostAdminApiClient.posts.read(identifier, {
+                include: 'tags,authors',
+                formats: ['html', 'plaintext']
+            });
             return post;
         } else {
             // Use Content API for public posts only
-            const post = await ghostApiClient.posts.read(identifier);
+            const post = await ghostApiClient.posts.read(identifier, {
+                formats: ['html', 'plaintext']
+            });
             return post;
         }
     } catch (error) {
@@ -39,20 +47,9 @@ export async function getPostById(postId: string, includeMemberContent: boolean 
 }
 
 // Helper function to get all posts with optional member content
-export async function getPosts(includeMemberContent: boolean = false, options: any = {}): Promise<any> {
+export async function getPosts(options: any = {}): Promise<any> {
     try {
-        if (includeMemberContent && ghostAdminApiClient) {
-            // Use Admin API to access all posts including member-reserved
-            return await ghostAdminApiClient.posts.browse({
-                include: 'tags,authors',
-                filter: options.filter,
-                limit: options.limit || 15,
-                page: options.page || 1
-            });
-        } else {
-            // Use Content API for public posts only
-            return await ghostApiClient.posts.browse(options);
-        }
+        return await ghostApiClient.posts.browse(options);
     } catch (error) {
         console.error('Error fetching posts:', error);
         throw new Error('Failed to fetch posts');
